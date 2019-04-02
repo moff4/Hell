@@ -9,7 +9,7 @@ help() {
 	echo " Script to controll service"
 	echo " $ $0 [-h|-?|--help]"
 	echo " $ $0 ctl <service_name> [ start | stop | restart | reload | status ]"
-	echo " $ $0 conf <service_name> [ [ add | update ] [ --dir=<dir> ] [ --cmd=<cmd> ] [ --env=<env_file> ] | delete ]"
+	echo " $ $0 conf <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]"
 	echo ""
 	echo " Flags:"
 	echo "   -h , -? , --help"
@@ -19,19 +19,24 @@ help() {
 	echo "   add"
 	echo "        add new service to config"
 	echo "        must be also passed --cmd, --dir and --env"
-	echo "          --cmd=<cmd> - command to be executed"
-	echo "          --dir=<dir> - dir to be changed before executing"
-	echo "          --env=<env_file> - file with enviroment variables"
 	echo ""
 	echo "   update"
 	echo "        update service in config"
 	echo "        must be also passed --cmd, --dir or --env"
-	echo "          --cmd=<cmd> - command to be executed"
-	echo "          --dir=<dir> - dir to be changed before executing"
-	echo "          --env=<env_file> - file with enviroment variables"
+	echo ""
+	echo "   show"
+	echo "        show service's config"
 	echo ""
 	echo "   delete"
 	echo "        delete service from config"
+	echo ""
+	echo " Args for conf:"
+	echo "   -c=<cmd> |--cmd=<cmd>"
+	echo "       command to be executed"
+	echo "   -d=<dir> |--dir=<dir>"
+	echo "       dir to be changed before executing"
+	echo "   -e=<env_file> |--env=<env_file>"
+	echo "       file with enviroment variables"
 	echo ""
 	echo " Flags for ctl:"
 	echo "   start, stop, restart"
@@ -44,6 +49,27 @@ help() {
 	echo "        Print current status"
 	echo ""
 	exit
+}
+
+hell_parse_argv() {
+	for i in "$@" ; do
+		case $i in
+			-c=*|--cmd=*)
+				ARGV_CMD="${i#*=}"
+			;;
+			-d=*|--dir=*)
+				ARGV_DIR="${i#*=}"
+			;;
+			-e=*|--env=*)
+				ARGV_ENV="${i#*=}"
+			;;
+		esac
+	done
+	# FIXME
+	# delete after test
+	echo "ARGV_CMD = ${ARGV_CMD}"
+	echo "ARGV_DIR = ${ARGV_DIR}"
+	echo "ARGV_ENV = ${ARGV_ENV}"
 }
 
 hell_load_service_info() {
@@ -62,6 +88,8 @@ hell_load_service_info() {
 	else
 		SERVICE_PID=
 	fi
+	# FIXME
+	# delete after test
 	echo "Data loaded"
 	echo "service: ${SERVICE}"
 	echo "data: ${SERVICE_DATA}"
@@ -111,19 +139,35 @@ hell_ctl() {
 	}
 
 	hell_ctl_status() {
+		echo "status of ${SERVICE}"
+		if [ ! -z ${SERVICE_PID} ] ; then
+			if kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
+				echo "Service is running"
+			else
+				echo "Service stopped"
+			fi
+		else
+			echo "Service was not started"
+		fi
+	}
+
+	hell_ctl_restart() {
+		echo "restarting ${SERVICE}"
 		hell_ctl_stop
 		sleep 2
 		hell_ctl_start
 	}
 
-	hell_ctl_restart() {
-		echo "restarting ${SERVICE}"
-		echo $@
-	}
-
 	hell_ctl_reload() {
 		echo "reloading ${SERVICE}"
-		echo $@
+		if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
+			# FIXME
+			# kill SIGHUP
+			kill ${SERVICE_PID}
+		else
+			echo "Service is not running"
+			exit 1
+		fi
 	}
 
 
@@ -145,16 +189,23 @@ hell_ctl() {
 hell_conf() {
 	hell_conf_add() {
 		echo "add service ${SERVICE}"
-		echo $@
+		hell_parse_argv $@
 		# FIXME
-		# parse argv
+		# json
 	}
 
 	hell_conf_update() {
 		echo "update service ${SERVICE}"
-		echo $@
+		hell_parse_argv $@
 		# FIXME
-		# parse argv
+		# json
+	}
+
+	hell_conf_show() {
+		echo "Service config"
+		echo "service: ${SERVICE}"
+		echo "data: "`cat ${SERVICE_DATA} | json_pp`
+		echo "pid: ${SERVICE_PID}"
 	}
 
 	hell_conf_delete() {
@@ -170,7 +221,7 @@ hell_conf() {
 	}
 
 	case "$1" in
-		"add" | "delete" | "update")
+		"add" | "delete" | "update" | "show")
 			hell_load_service_info $1
 			local i=$2
 			shift
@@ -199,7 +250,7 @@ main() {
 		*)
 			echo "Unknown command: $1"
 			echo "For more info run $ $0 -h"
-			# exit 0
+			exit 1
 		;;
 	esac
 }
