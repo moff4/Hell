@@ -1,0 +1,207 @@
+#!/bin/bash
+
+# . hell_utils.sh
+FILE_CONF='services.json'
+FILE_PID='pids.json'
+
+# TESTED
+help() {
+	echo " Script to controll service"
+	echo " $ $0 [-h|-?|--help]"
+	echo " $ $0 ctl <service_name> [ start | stop | restart | reload | status ]"
+	echo " $ $0 conf <service_name> [ [ add | update ] [ --dir=<dir> ] [ --cmd=<cmd> ] [ --env=<env_file> ] | delete ]"
+	echo ""
+	echo " Flags:"
+	echo "   -h , -? , --help"
+	echo "       See this nice message again :3"
+	echo ""
+	echo " Flags for conf:"
+	echo "   add"
+	echo "        add new service to config"
+	echo "        must be also passed --cmd, --dir and --env"
+	echo "          --cmd=<cmd> - command to be executed"
+	echo "          --dir=<dir> - dir to be changed before executing"
+	echo "          --env=<env_file> - file with enviroment variables"
+	echo ""
+	echo "   update"
+	echo "        update service in config"
+	echo "        must be also passed --cmd, --dir or --env"
+	echo "          --cmd=<cmd> - command to be executed"
+	echo "          --dir=<dir> - dir to be changed before executing"
+	echo "          --env=<env_file> - file with enviroment variables"
+	echo ""
+	echo "   delete"
+	echo "        delete service from config"
+	echo ""
+	echo " Flags for ctl:"
+	echo "   start, stop, restart"
+	echo "        Start/Stop/Restart service"
+	echo ""
+	echo "   reload"
+	echo "        Reload configuration"
+	echo ""
+	echo "   status"
+	echo "        Print current status"
+	echo ""
+	exit
+}
+
+hell_load_service_info() {
+	SERVICE=$1
+	if [ ! -f ${CONF_FILE} ] ; then
+		echo "Service '${SERVICE}' not found! (1)"
+		exit 1
+	fi
+	SERVICE_DATA=`cat ${FILE_CONF} | jshon -Q -e ${SERVICE}`
+	if [ -z ${SERVICE_DATA} ] ; then
+		echo "Service '${SERVICE}' not found! (2)"
+		exit 1
+	fi
+	if [ -f ${FILE_PID} ] ; then
+		SERVICE_PID=`cat ${FILE_PID} | jshon -Q -e ${SERVICE}`
+	else
+		SERVICE_PID=
+	fi
+	echo "Data loaded"
+	echo "service: ${SERVICE}"
+	echo "data: ${SERVICE_DATA}"
+	echo "pid: ${SERVICE_PID}"
+}
+
+hell_ctl() {
+
+	hell_ctl_start() {
+		if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
+			echo "Service already running"
+		fi
+		echo "starting ${SERVICE}"
+		cd `cat ${SERVICE_DATA}|jshon -Q -e dir`
+		local cmd=`cat ${SERVICE_DATA}|jshon -Q -e dir`
+		local envfile=`cat ${SERVICE_DATA}|jshon -Q -e env`
+		if [ -f ${envfile} ] ; then
+			# FIXME
+			# apply env
+		fi
+		nohub ${cmd} > /dev/null 2>/dev/null &
+		SERVICE_PID=$!
+		if [ -f ${FILE_PID} ] ; then
+			local res=`cat ${FILE_PID} | jshon -Q -s ${SERVICE_PID} -i ${SERVICE}`
+		else
+			local res=`jshon -Q -n "{}" -s ${SERVICE_PID} -i ${SERVICE}`
+		fi
+		echo $res > ${FILE_PID}
+	}
+
+	hell_ctl_stop() {
+		echo "stopping ${SERVICE}"
+		if [ ! -z ${SERVICE_PID} ] ; then
+			kill ${SERVICE_PID}
+			local pids=`pgrep -P ${SERVICE_PID}`
+			kill ${SERVICE_PID} ${pids}
+			sleep 2
+			for pid in ${pids} ; do
+				kill -9 ${pid}
+			done
+			kill -9 ${SERVICE_PID}
+			if [ -f ${FILE_PID} ] ; then
+				local res=`cat ${FILE_PID} | jshon -Q -e ${SERVICE} -p`
+			fi
+			echo $res > ${FILE_PID}
+		fi
+	}
+
+	hell_ctl_status() {
+		hell_ctl_stop
+		sleep 2
+		hell_ctl_start
+	}
+
+	hell_ctl_restart() {
+		echo "restarting ${SERVICE}"
+		echo $@
+	}
+
+	hell_ctl_reload() {
+		echo "reloading ${SERVICE}"
+		echo $@
+	}
+
+
+	case "$2" in
+		"start" | "stop" | "status" | "restart" | "reload")
+			hell_load_service_info $1
+			local i=$2
+			shift
+			shift
+			"hell_ctl_$i" $@
+		;;
+		*)
+			echo "Unknown command for ctl: $1"
+			echo "For more info run $ $0 -h"
+		;;
+	esac
+}
+
+hell_conf() {
+	hell_conf_add() {
+		echo "add service ${SERVICE}"
+		echo $@
+		# FIXME
+		# parse argv
+	}
+
+	hell_conf_update() {
+		echo "update service ${SERVICE}"
+		echo $@
+		# FIXME
+		# parse argv
+	}
+
+	hell_conf_delete() {
+		echo "delete service ${SERVICE}"
+		if [ -f ${FILE_CONF} ] ; then
+			local res=`cat ${FILE_CONF} | jshon -Q -e ${SERVICE} -p`
+		fi
+		echo $res > ${FILE_CONF}
+		if [ -f ${FILE_PID} ] ; then
+			local res=`cat ${FILE_PID} | jshon -Q -e ${SERVICE} -p`
+		fi
+		echo $res > ${FILE_PID}
+	}
+
+	case "$1" in
+		"add" | "delete" | "update")
+			hell_load_service_info $1
+			local i=$2
+			shift
+			shift
+			"hell_conf_$i" $@
+		;;
+		*)
+			echo "Unknown command for conf: $1"
+			echo "For more info run $ $0 -h"
+		;;
+	esac
+}
+
+main() {
+	case "$1" in
+		"-?" |"-h" | "--help")
+			help
+			exit 0
+		;;
+		"conf" | "ctl")
+			local i=$1
+			shift
+			"hell_$i" $@
+			exit 0
+		;;
+		*)
+			echo "Unknown command: $1"
+			echo "For more info run $ $0 -h"
+			# exit 0
+		;;
+	esac
+}
+
+main $@
