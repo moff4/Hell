@@ -1,7 +1,10 @@
 #!/bin/bash
 
-FILE_CONF='conf/services.json'
-FILE_PID='conf/pids.json'
+HELL_DIR=~/.hell
+FILE_CONF=${HELL_DIR}/services.json
+FILE_PID=${HELL}/pids.json
+
+mkdir -p ${HELL_DIR}
 
 # TESTED
 help() {
@@ -110,38 +113,40 @@ hell_ctl() {
 			cd `echo ${SERVICE_DATA} | jshon -Q -e dir -u`
 			local cmd=`echo ${SERVICE_DATA}|jshon -Q -e cmd -u`
 			local envfile=`echo ${SERVICE_DATA}|jshon -Q -e env -u`
-			echo cmd=$cmd
-			echo env=$envfile
-			if [ -f ${envfile} ] ; then
+			if [ ! -z ${envfile} ] && [ -f ${envfile} ] ; then
 				. ${envfile}
 			fi
 			# FIXME start daemon with special flags
 			nohup ${cmd} > /dev/null 2>/dev/null &
 			SERVICE_PID=$!
+			cd - > /dev/null 2>/dev/null
 			if [ -f ${FILE_PID} ] ; then
 				local cfg=`cat ${FILE_PID}`
 			else
 				local cfg='{}'
 			fi
-			echo $cfg | jshon -Q -s ${SERVICE_PID} -i ${SERVICE} > ${FILE_PID}
+			res=`echo $cfg | jshon -Q -s ${SERVICE_PID} -i ${SERVICE} `
+			echo $res > ${FILE_PID}
+			echo "service started; Pid = ${SERVICE_PID}"
 		fi
 	}
 
 	hell_ctl_stop() {
 		if [ ! -z ${SERVICE_PID} ] ; then
 			echo "stopping ${SERVICE}"
-			kill ${SERVICE_PID}
 			local pids=`pgrep -P ${SERVICE_PID}`
-			kill ${SERVICE_PID} ${pids}
+			kill ${SERVICE_PID} ${pids} > /dev/null 2> /dev/null
 			sleep 2
 			for pid in ${pids} ; do
-				kill -9 ${pid}
+				kill -9 ${pid} > /dev/null 2> /dev/null
 			done
-			kill -9 ${SERVICE_PID}
+			kill -9 ${SERVICE_PID} > /dev/null 2> /dev/null
 			if [ -f ${FILE_PID} ] ; then
-				local res=`cat ${FILE_PID} | jshon -Q -e ${SERVICE} -p`
+				local cfg=`cat ${FILE_PID}`
+			else
+				local cfg='{}'
 			fi
-			echo $res > ${FILE_PID}
+			echo $cfg | jshon -Q -d ${SERVICE} > ${FILE_PID}
 			echo "Service was stopped"
 		else
 			echo "Service was not started"
@@ -201,11 +206,11 @@ hell_conf() {
 		echo "add service '${SERVICE}'"
 		hell_parse_argv $@
 		local args=(-n {})
-		if [ -z ${ARGV_CMD} ] ; then
+		if [ -z "${ARGV_CMD}" ] ; then
 			echo "arg -c was not passed :("
 			exit 1
 		else
-			args+=(-s ${ARGV_CMD} -i cmd)
+			args+=(-s "${ARGV_CMD}" -i cmd)
 		fi
 		if [ -z ${ARGV_DIR} ] ; then
 			echo "arg -d was not passed :("
