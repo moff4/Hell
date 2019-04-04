@@ -8,7 +8,7 @@ mkdir -p ${HELL_DIR}
 
 # TESTED
 help() {
-	echo " Script to controll service"
+	echo " Hell - utility to controll daemons"
 	echo " $ $0 [-h|-?|--help]"
 	echo " $ $0 ctl <service_name> [ start | stop | restart | reload | status ]"
 	echo " $ $0 conf <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]"
