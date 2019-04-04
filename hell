@@ -2,7 +2,7 @@
 
 HELL_DIR=~/.hell
 FILE_CONF=${HELL_DIR}/services.json
-FILE_PID=${HELL}/pids.json
+FILE_PID=${HELL_DIR}/pids.json
 
 mkdir -p ${HELL_DIR}
 
@@ -109,7 +109,7 @@ hell_ctl() {
 		if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
 			echo "Service already running"
 		else			
-			echo "starting ${SERVICE}"
+			echo "starting '${SERVICE}'"
 			cd `echo ${SERVICE_DATA} | jshon -Q -e dir -u`
 			local cmd=`echo ${SERVICE_DATA}|jshon -Q -e cmd -u`
 			local envfile=`echo ${SERVICE_DATA}|jshon -Q -e env -u`
@@ -132,7 +132,7 @@ hell_ctl() {
 
 	hell_ctl_stop() {
 		if [ ! -z ${SERVICE_PID} ] ; then
-			echo "stopping ${SERVICE}"
+			echo "stopping '${SERVICE}'"
 			local pids=`pgrep -P ${SERVICE_PID}`
 			kill ${SERVICE_PID} ${pids} > /dev/null 2> /dev/null
 			sleep 2
@@ -153,7 +153,7 @@ hell_ctl() {
 	}
 
 	hell_ctl_status() {
-		echo "status of ${SERVICE}"
+		echo "status of '${SERVICE}'"
 		if [ ! -z ${SERVICE_PID} ] ; then
 			if kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
 				echo "Service is running"
@@ -173,7 +173,7 @@ hell_ctl() {
 	}
 
 	hell_ctl_reload() {
-		echo "reloading ${SERVICE}"
+		echo "reloading '${SERVICE}'"
 		if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
 			kill -1 ${SERVICE_PID}
 		else
@@ -219,7 +219,7 @@ hell_conf() {
 		fi
 		if [ -z ${ARGV_ENV} ] ; then
 			echo "arg -e was not passed."
-			echo "That's not a problem, u can update info later)."
+			echo "That's not a problem, u can update info later."
 		else
 			args+=(-s ${ARGV_ENV} -i env)
 		fi
@@ -229,7 +229,7 @@ hell_conf() {
 		else
 			local cfg="{}"
 		fi
-		echo ${cfg} | jshon -n '{}' ${args[@]} -i "${SERVICE}" > ${FILE_CONF}
+		echo ${cfg} | jshon ${args[@]} -i "${SERVICE}" > ${FILE_CONF}
 	}
 
 	hell_conf_update() {
