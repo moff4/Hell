@@ -116,7 +116,6 @@ hell_ctl() {
 			if [ ! -z ${envfile} ] && [ -f ${envfile} ] ; then
 				. ${envfile}
 			fi
-			# FIXME start daemon with special flags
 			nohup ${cmd} > /dev/null 2>/dev/null &
 			SERVICE_PID=$!
 			cd - > /dev/null 2>/dev/null
