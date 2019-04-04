@@ -44,7 +44,7 @@ Command line utility to controll daemons
 
 All configs are json objects  
 
-### Services  
+#### Services  
 
 Services store data about each service  
 key - service name  
@@ -64,7 +64,7 @@ Example:
 }  
 ```  
 
-### Pids
+#### Pids
 
 Internal config that keeps process ids  
 Example:  
@@ -72,4 +72,58 @@ Example:
 {
 	"MyService": 1234
 }
+```
+
+## Example  
+
+Here are examples of usage of hell:  
+
+Create service configuration   
+```
+$ hell conf MyService add -c=./start.sh -d=~/my/project
+add service 'MyService'
+arg -e was not passed.
+That's not a problem, u can update info later.
+```
+
+Update service configuration  
+```
+$ hell conf MyService update --env=env/file.sh
+update service 'MyService'
+```
+
+Show service configuration  
+```
+$ hell conf MyService show
+Service config
+service: 'MyService'
+data: { "dir" : "/home/", "env" : "/home/riniyar/bin/unixtime", "cmd" : "./start.sh" }
+Service is not running
+```
+
+Start service  
+```
+$ hell ctl MyService start
+starting 'MyService'
+service started; Pid = 11248
+```
+
+Show status of service  
+```
+$ hell ctl MyService status
+status of 'MyService'
+Service is running
+```
+
+Stop service  
+```
+$ hell ctl MyService stop
+stopping 'MyService'
+Service was stopped
+```
+
+Delete service configuration  
+```
+$ hell conf MyService delete
+delete service 'MyService'
 ```
