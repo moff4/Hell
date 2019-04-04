@@ -57,14 +57,18 @@ hell_parse_argv() {
 				ARGV_CMD="${i#*=}"
 			;;
 			-d=*|--dir=*)
-				# FIXME
-				# check dir exists
 				ARGV_DIR="${i#*=}"
+				if [ ! -d "${ARGV_DIR}" ]; then
+					echo "directory does not exists: ${ARGV_DIR}"
+					exit 1
+				fi
 			;;
 			-e=*|--env=*)
-				# FIXME
-				# file exitsts
 				ARGV_ENV="${i#*=}"
+				if [ ! -f "${ARGV_ENV}" ]; then
+					echo "file does not exists: ${ARGV_ENV}"
+					exit 1
+				fi
 			;;
 		esac
 	done
@@ -88,15 +92,12 @@ hell_load_service_info() {
 		echo "Service '${SERVICE}' not found! (service not configured)"
 		exit 1
 	fi
-	hell_load_check_json_file ${FILE_CONF}
+	hell_load_check_json_file ${FILE_PID}
 	if [ -f ${FILE_PID} ] ; then
-		SERVICE_PID=`cat ${FILE_PID} | jshon -Q -e ${SERVICE}`
+		SERVICE_PID=`cat ${FILE_PID} | jshon -Q -e ${SERVICE} -u`
 	else
 		SERVICE_PID=
 	fi
-	# FIXME
-	# delete after test
-	echo "pid: ${SERVICE_PID}"
 }
 
 hell_ctl() {
@@ -104,27 +105,31 @@ hell_ctl() {
 	hell_ctl_start() {
 		if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
 			echo "Service already running"
+		else			
+			echo "starting ${SERVICE}"
+			cd `echo ${SERVICE_DATA} | jshon -Q -e dir -u`
+			local cmd=`echo ${SERVICE_DATA}|jshon -Q -e cmd -u`
+			local envfile=`echo ${SERVICE_DATA}|jshon -Q -e env -u`
+			echo cmd=$cmd
+			echo env=$envfile
+			if [ -f ${envfile} ] ; then
+				. ${envfile}
+			fi
+			# FIXME start daemon with special flags
+			nohup ${cmd} > /dev/null 2>/dev/null &
+			SERVICE_PID=$!
+			if [ -f ${FILE_PID} ] ; then
+				local cfg=`cat ${FILE_PID}`
+			else
+				local cfg='{}'
+			fi
+			echo $cfg | jshon -Q -s ${SERVICE_PID} -i ${SERVICE} > ${FILE_PID}
 		fi
-		echo "starting ${SERVICE}"
-		cd `cat ${SERVICE_DATA}|jshon -Q -e dir`
-		local cmd=`cat ${SERVICE_DATA}|jshon -Q -e dir`
-		local envfile=`cat ${SERVICE_DATA}|jshon -Q -e env`
-		if [ -f ${envfile} ] ; then
-			. ${envfile}
-		fi
-		nohub ${cmd} > /dev/null 2>/dev/null &
-		SERVICE_PID=$!
-		if [ -f ${FILE_PID} ] ; then
-			local res=`cat ${FILE_PID} | jshon -Q -s ${SERVICE_PID} -i ${SERVICE}`
-		else
-			local res=`jshon -Q -n "{}" -s ${SERVICE_PID} -i ${SERVICE}`
-		fi
-		echo $res > ${FILE_PID}
 	}
 
 	hell_ctl_stop() {
-		echo "stopping ${SERVICE}"
 		if [ ! -z ${SERVICE_PID} ] ; then
+			echo "stopping ${SERVICE}"
 			kill ${SERVICE_PID}
 			local pids=`pgrep -P ${SERVICE_PID}`
 			kill ${SERVICE_PID} ${pids}
@@ -137,6 +142,9 @@ hell_ctl() {
 				local res=`cat ${FILE_PID} | jshon -Q -e ${SERVICE} -p`
 			fi
 			echo $res > ${FILE_PID}
+			echo "Service was stopped"
+		else
+			echo "Service was not started"
 		fi
 	}
 
@@ -259,7 +267,6 @@ hell_conf() {
 	hell_conf_show_all() {
 		echo "All services configs"
 		if [ -f ${FILE_CONF} ] ; then
-			echo "data: "
 			cat ${FILE_CONF} | json_pp
 		else
 			echo "Config not found; Maybe it's empty?"
