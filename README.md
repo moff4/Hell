@@ -5,11 +5,19 @@ Command line utility to controll daemons
 ## Usage
 ```
  $ $0 [-h|-?|--help]
- $ $0 ctl <service_name> [ start | stop | restart | reload | status ]
  $ $0 conf <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]
+ $ $0 ctl <service_name> [ start | stop | restart | reload | status ]
+ $ $0 status
+
  Flags:
    -h , -? , --help
        See help message
+
+ Commands:
+   conf - work with configurations
+   ctl - controll panel
+   status - print status of all daemons
+
  Flags for conf:
    add
         add new service to config
@@ -21,6 +29,7 @@ Command line utility to controll daemons
         show service's config
    delete
         delete service from config
+
  Args for conf:
    -c=<cmd> |--cmd=<cmd>
        command to be executed
@@ -28,6 +37,7 @@ Command line utility to controll daemons
        dir to be changed before executing
    -e=<env_file> |--env=<env_file>
        file with enviroment variables
+
  Flags for ctl:
    start, stop, restart
         Start/Stop/Restart service
@@ -126,4 +136,12 @@ Delete service configuration
 ```
 $ hell conf MyService delete
 delete service 'MyService'
+```
+
+Print status of all services  
+```
+$ hell status  
+MyService1 - Running
+MyService2 - Stopped
+MyService3 - Not started
 ```
