@@ -4,11 +4,16 @@ HELL_DIR=~/.hell
 FILE_CONF=${HELL_DIR}/services.json
 FILE_PID=${HELL_DIR}/pids.json
 
+Red='\033[0;31m'
+Green='\033[0;32m'
+Yellow='\033[1;33m'
+NC='\033[0m'
+
 mkdir -p ${HELL_DIR}
 
 # TESTED
 help() {
-	echo " Hell - utility to controll daemons"
+	echo -e " ${Green}Hell${NC} - utility to controll ${Red}daemons${NC}"
 	echo " $ $0 [-h|-?|--help]"
 	echo " $ $0 ctl <service_name> [ start | stop | restart | reload | status ]"
 	echo " $ $0 conf <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]"
@@ -68,14 +73,14 @@ hell_parse_argv() {
 			-d=*|--dir=*)
 				ARGV_DIR="${i#*=}"
 				if [ ! -d "${ARGV_DIR}" ]; then
-					echo "directory does not exists: ${ARGV_DIR}"
+					echo -e "${Red}directory does not exists: ${ARGV_DIR}${NC}"
 					exit 1
 				fi
 			;;
 			-e=*|--env=*)
 				ARGV_ENV="${i#*=}"
 				if [ ! -f "${ARGV_ENV}" ]; then
-					echo "file does not exists: ${ARGV_ENV}"
+					echo -e "${Red}file does not exists: ${ARGV_ENV}${NC}"
 					exit 1
 				fi
 			;;
@@ -92,13 +97,13 @@ hell_load_check_json_file() {
 hell_load_service_info() {
 	SERVICE=$1
 	if [ ! -f ${FILE_CONF} ] ; then
-		echo "Service '${SERVICE}' not found! (file not exists)"
+		echo -e "${Red}Service '${SERVICE}' not found! (file not exists)${NC}"
 		exit 1
 	fi
 	hell_load_check_json_file ${FILE_CONF}
 	SERVICE_DATA=`cat ${FILE_CONF} | jshon -Q -e ${SERVICE}`
 	if [ -z "${SERVICE_DATA}" ] ; then
-		echo "Service '${SERVICE}' not found! (service not configured)"
+		echo -e "${Red}Service '${SERVICE}' not found! (service not configured)${NC}"
 		exit 1
 	fi
 	hell_load_check_json_file ${FILE_PID}
@@ -113,12 +118,12 @@ hell_status() {
 	hell_status_single() {
 		pid=`cat ${FILE_PID} | jshon -Q -e $1 -u`
 		if [ -z $pid ] ; then
-			echo "Not started"
+			echo -e "${Yellow}Not started${NC}"
 		else
 			if kill -0 $pid > /dev/null 2> /dev/null ; then
-				echo "Running"
+				echo -e "${Green}Running${NC}"
 			else
-				echo "Stopped"
+				echo -e "${Red}Stopped${NC}"
 			fi
 		fi
 	}
@@ -134,7 +139,7 @@ hell_ctl() {
 
 	hell_ctl_start() {
 		if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
-			echo "Service already running"
+			echo -e "${Yellow}Service already running${NC}"
 		else			
 			echo "starting '${SERVICE}'"
 			cd `echo ${SERVICE_DATA} | jshon -Q -e dir -u`
@@ -153,7 +158,7 @@ hell_ctl() {
 			fi
 			res=`echo $cfg | jshon -Q -s ${SERVICE_PID} -i ${SERVICE} `
 			echo $res > ${FILE_PID}
-			echo "service started; Pid = ${SERVICE_PID}"
+			echo -e "${Green}service started; Pid = ${SERVICE_PID}${NC}"
 		fi
 	}
 
@@ -173,9 +178,9 @@ hell_ctl() {
 				local cfg='{}'
 			fi
 			echo $cfg | jshon -Q -d ${SERVICE} > ${FILE_PID}
-			echo "Service was stopped"
+			echo -e "${Green}Service was stopped${NC}"
 		else
-			echo "Service was not started"
+			echo -e "${Yellow}Service was not started${NC}"
 		fi
 	}
 
@@ -183,12 +188,12 @@ hell_ctl() {
 		echo "status of '${SERVICE}'"
 		if [ ! -z ${SERVICE_PID} ] ; then
 			if kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
-				echo "Service is running"
+				echo -e "${Green}Service is running${NC}"
 			else
-				echo "Service stopped"
+				echo -e "${Red}Service stopped${NC}"
 			fi
 		else
-			echo "Service was not started"
+			echo -e "${Yellow}Service was not started${NC}"
 		fi
 	}
 
@@ -204,7 +209,7 @@ hell_ctl() {
 		if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
 			kill -1 ${SERVICE_PID}
 		else
-			echo "Service is not running"
+			echo -e "${Yellow}Service is not running${NC}"
 			exit 1
 		fi
 	}
@@ -233,20 +238,20 @@ hell_conf() {
 		hell_parse_argv $@
 		local args=(-n {})
 		if [ -z "${ARGV_CMD}" ] ; then
-			echo "arg -c was not passed :("
+			echo -e "${Red}arg -c was not passed :(${NC}"
 			exit 1
 		else
 			args+=(-s "${ARGV_CMD}" -i cmd)
 		fi
 		if [ -z ${ARGV_DIR} ] ; then
-			echo "arg -d was not passed :("
+			echo -e "${Yellow}arg -d was not passed :(${NC}"
 			exit 1
 		else
 			args+=(-s ${ARGV_DIR} -i dir)
 		fi
 		if [ -z ${ARGV_ENV} ] ; then
 			echo "arg -e was not passed."
-			echo "That's not a problem, u can update info later."
+			echo "That's not a problem, u can set it later."
 		else
 			args+=(-s ${ARGV_ENV} -i env)
 		fi
@@ -286,12 +291,12 @@ hell_conf() {
 			echo "service: '${SERVICE}'"
 			echo "data: "`echo ${SERVICE_DATA} | json_pp`
 			if [ -z ${SERVICE_PID} ] ; then
-				echo "Service is not running"
+				echo -e "${Yellow}Service is not running${NC}"
 			else
-				echo "pid: ${SERVICE_PID}"
+				echo -e "${Green}pid: ${SERVICE_PID}${NC}"
 			fi
 		else
-			echo "Config not found; Maybe it's empty?"
+			echo -e "${Red}Config not found; Maybe it's empty?${NC}"
 		fi
 	}
 
@@ -300,7 +305,7 @@ hell_conf() {
 		if [ -f ${FILE_CONF} ] ; then
 			cat ${FILE_CONF} | json_pp
 		else
-			echo "Config not found; Maybe it's empty?"
+			echo -e "${Red}Config not found; Maybe it's empty?${NC}"
 		fi
 	}
 
