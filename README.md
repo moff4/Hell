@@ -4,10 +4,10 @@ Command line utility to controll daemons
 
 ## Usage
 ```
- $ $0 [-h|-?|--help]
- $ $0 conf <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]
- $ $0 ctl <service_name> [ start | stop | restart | reload | status ]
- $ $0 status
+ $ hell [-h|-?|--help]
+ $ hell conf <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]
+ $ hell ctl <service_name> [ start | stop | restart | reload | status ]
+ $ hell status
 
  Flags:
    -h , -? , --help
