@@ -1,5 +1,6 @@
 #!/bin/bash
 
+VERSION='1.1'
 HELL_DIR=~/.hell
 FILE_CONF=${HELL_DIR}/services.json
 FILE_PID=${HELL_DIR}/pids.json
@@ -14,9 +15,9 @@ mkdir -p ${HELL_DIR}
 # TESTED
 help() {
 	echo -e " ${Green}Hell${NC} - utility to controll ${Red}daemons${NC}"
-	echo " $ $0 [-h|-?|--help]"
-	echo " $ $0 ctl <service_name> [ start | stop | restart | reload | status ]"
-	echo " $ $0 conf <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]"
+	echo " $ $0 [-h|-?|--help|-v]"
+	echo " $ $0 <service_name> [ start | stop | restart | reload | status ]"
+	echo " $ $0 <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]"
 	echo " $ $0 status"
 	echo ""
 	echo "Commands:"
@@ -135,213 +136,171 @@ hell_status() {
 }
 
 
-hell_ctl() {
-
-	hell_ctl_start() {
-		if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
-			echo -e "${Yellow}Service already running${NC}"
-		else			
-			echo "starting '${SERVICE}'"
-			cd `echo ${SERVICE_DATA} | jshon -Q -e dir -u`
-			local cmd=`echo ${SERVICE_DATA}|jshon -Q -e cmd -u`
-			local envfile=`echo ${SERVICE_DATA}|jshon -Q -e env -u`
-			if [ ! -z ${envfile} ] && [ -f ${envfile} ] ; then
-				. ${envfile}
-			fi
-			nohup ${cmd} > /dev/null 2>/dev/null &
-			SERVICE_PID=$!
-			cd - > /dev/null 2>/dev/null
-			if [ -f ${FILE_PID} ] ; then
-				local cfg=`cat ${FILE_PID}`
-			else
-				local cfg='{}'
-			fi
-			res=`echo $cfg | jshon -Q -s ${SERVICE_PID} -i ${SERVICE} `
-			echo $res > ${FILE_PID}
-			echo -e "${Green}service started; Pid = ${SERVICE_PID}${NC}"
+hell_ctl_start() {
+	if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
+		echo -e "${Yellow}Service already running${NC}"
+	else			
+		echo "starting '${SERVICE}'"
+		cd `echo ${SERVICE_DATA} | jshon -Q -e dir -u`
+		local cmd=`echo ${SERVICE_DATA}|jshon -Q -e cmd -u`
+		local envfile=`echo ${SERVICE_DATA}|jshon -Q -e env -u`
+		if [ ! -z ${envfile} ] && [ -f ${envfile} ] ; then
+			. ${envfile}
 		fi
-	}
-
-	hell_ctl_stop() {
-		if [ ! -z ${SERVICE_PID} ] ; then
-			echo "stopping '${SERVICE}'"
-			local pids=`pgrep -P ${SERVICE_PID}`
-			kill ${SERVICE_PID} ${pids} > /dev/null 2> /dev/null
-			sleep 2
-			for pid in ${pids} ; do
-				kill -9 ${pid} > /dev/null 2> /dev/null
-			done
-			kill -9 ${SERVICE_PID} > /dev/null 2> /dev/null
-			if [ -f ${FILE_PID} ] ; then
-				local cfg=`cat ${FILE_PID}`
-			else
-				local cfg='{}'
-			fi
-			echo $cfg | jshon -Q -d ${SERVICE} > ${FILE_PID}
-			echo -e "${Green}Service was stopped${NC}"
+		nohup ${cmd} > /dev/null 2>/dev/null &
+		SERVICE_PID=$!
+		cd - > /dev/null 2>/dev/null
+		if [ -f ${FILE_PID} ] ; then
+			local cfg=`cat ${FILE_PID}`
 		else
-			echo -e "${Yellow}Service was not started${NC}"
+			local cfg='{}'
 		fi
-	}
-
-	hell_ctl_status() {
-		echo "status of '${SERVICE}'"
-		if [ ! -z ${SERVICE_PID} ] ; then
-			if kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
-				echo -e "${Green}Service is running${NC}"
-			else
-				echo -e "${Red}Service stopped${NC}"
-			fi
-		else
-			echo -e "${Yellow}Service was not started${NC}"
-		fi
-	}
-
-	hell_ctl_restart() {
-		echo "restarting ${SERVICE}"
-		hell_ctl_stop
-		sleep 2
-		hell_ctl_start
-	}
-
-	hell_ctl_reload() {
-		echo "reloading '${SERVICE}'"
-		if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
-			kill -1 ${SERVICE_PID}
-		else
-			echo -e "${Yellow}Service is not running${NC}"
-			exit 1
-		fi
-	}
-
-
-	case "$2" in
-		"start" | "stop" | "status" | "restart" | "reload")
-			hell_load_service_info $1
-			local i=$2
-			shift
-			shift
-			"hell_ctl_$i" $@
-		;;
-		*)
-			echo "Unknown command for ctl: $1"
-			echo "For more info run $ $0 -h"
-		;;
-	esac
+		res=`echo $cfg | jshon -Q -s ${SERVICE_PID} -i ${SERVICE} `
+		echo $res > ${FILE_PID}
+		echo -e "${Green}service started; Pid = ${SERVICE_PID}${NC}"
+	fi
 }
 
-hell_conf() {
-	hell_conf_add() {
-		# check if $1 not exitst
-		SERVICE=$1
-		echo "add service '${SERVICE}'"
-		hell_parse_argv $@
-		local args=(-n {})
-		if [ -z "${ARGV_CMD}" ] ; then
-			echo -e "${Red}arg -c was not passed :(${NC}"
-			exit 1
-		else
-			args+=(-s "${ARGV_CMD}" -i cmd)
-		fi
-		if [ -z ${ARGV_DIR} ] ; then
-			echo -e "${Yellow}arg -d was not passed :(${NC}"
-			exit 1
-		else
-			args+=(-s ${ARGV_DIR} -i dir)
-		fi
-		if [ -z ${ARGV_ENV} ] ; then
-			echo "arg -e was not passed."
-			echo "That's not a problem, u can set it later."
-		else
-			args+=(-s ${ARGV_ENV} -i env)
-		fi
-		if [ -f ${FILE_CONF} ] ; then
-			hell_load_check_json_file ${FILE_CONF}
-			local cfg=`cat ${FILE_CONF}`
-		else
-			local cfg="{}"
-		fi
-		echo ${cfg} | jshon ${args[@]} -i "${SERVICE}" > ${FILE_CONF}
-	}
-
-	hell_conf_update() {
-		echo "update service '${SERVICE}'"
-		hell_parse_argv $@
-		args=()
-		if [ ! -z ${ARGV_CMD} ] ; then
-			args+=(-s ${ARGV_CMD} -i cmd)
-		fi
-		if [ ! -z ${ARGV_DIR} ] ; then
-			args+=(-s ${ARGV_DIR} -i dir)
-		fi
-		if [ ! -z ${ARGV_ENV} ] ; then
-			args+=(-s ${ARGV_ENV} -i env)
-		fi
-		if  [[ ${#args[@]} -le 0 ]] ; then
-			echo "nothing to update; run -h to read help"
-			exit 1
-		fi
-		local res=`cat ${FILE_CONF}`
-		echo $res | jshon -Q -e ${SERVICE} ${args[@]} -i ${SERVICE} > ${FILE_CONF}
-	}
-
-	hell_conf_show() {
-		if [ -f ${FILE_CONF} ] ; then
-			echo "Service config"
-			echo "service: '${SERVICE}'"
-			echo "data: "`echo ${SERVICE_DATA} | json_pp`
-			if [ -z ${SERVICE_PID} ] ; then
-				echo -e "${Yellow}Service is not running${NC}"
-			else
-				echo -e "${Green}pid: ${SERVICE_PID}${NC}"
-			fi
-		else
-			echo -e "${Red}Config not found; Maybe it's empty?${NC}"
-		fi
-	}
-
-	hell_conf_show_all() {
-		echo "All services configs"
-		if [ -f ${FILE_CONF} ] ; then
-			cat ${FILE_CONF} | json_pp
-		else
-			echo -e "${Red}Config not found; Maybe it's empty?${NC}"
-		fi
-	}
-
-	hell_conf_delete() {
-		echo "delete service '${SERVICE}'"
-		if [ -f ${FILE_CONF} ] ; then
-			local res=`cat ${FILE_CONF}`
-			echo $res | jshon -Q -d ${SERVICE} > ${FILE_CONF}
-		fi
+hell_ctl_stop() {
+	if [ ! -z ${SERVICE_PID} ] ; then
+		echo "stopping '${SERVICE}'"
+		local pids=`pgrep -P ${SERVICE_PID}`
+		kill ${SERVICE_PID} ${pids} > /dev/null 2> /dev/null
+		sleep 2
+		for pid in ${pids} ; do
+			kill -9 ${pid} > /dev/null 2> /dev/null
+		done
+		kill -9 ${SERVICE_PID} > /dev/null 2> /dev/null
 		if [ -f ${FILE_PID} ] ; then
-			local res=`cat ${FILE_PID}`
-			echo $res | jshon -Q -d ${SERVICE} > ${FILE_PID}
+			local cfg=`cat ${FILE_PID}`
+		else
+			local cfg='{}'
 		fi
-	}
-	if  [[ "$1" = "show-all" ]] ; then
-		hell_conf_show_all
+		echo $cfg | jshon -Q -d ${SERVICE} > ${FILE_PID}
+		echo -e "${Green}Service was stopped${NC}"
 	else
-		case "$2" in
-			"add")
-				local new_service_name=$1
-				shift
-				shift
-				hell_conf_add ${new_service_name} $@
-			;;
-			"delete" | "update" | "show")
-				hell_load_service_info $1
-				local i=$2
-				shift
-				shift
-				"hell_conf_$i" $@
-			;;
-			*)
-				echo "Unknown command for conf: $1"
-				echo "For more info run $ $0 -h"
-			;;
-		esac
+		echo -e "${Yellow}Service was not started${NC}"
+	fi
+}
+
+hell_ctl_status() {
+	echo "status of '${SERVICE}'"
+	if [ ! -z ${SERVICE_PID} ] ; then
+		if kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
+			echo -e "${Green}Service is running${NC}"
+		else
+			echo -e "${Red}Service stopped${NC}"
+		fi
+	else
+		echo -e "${Yellow}Service was not started${NC}"
+	fi
+}
+
+hell_ctl_restart() {
+	echo "restarting ${SERVICE}"
+	hell_ctl_stop
+	sleep 2
+	hell_ctl_start
+}
+
+hell_ctl_reload() {
+	echo "reloading '${SERVICE}'"
+	if [ ! -z ${SERVICE_PID} ] && kill -0 ${SERVICE_PID} > /dev/null 2> /dev/null ; then
+		kill -1 ${SERVICE_PID}
+	else
+		echo -e "${Yellow}Service is not running${NC}"
+		exit 1
+	fi
+}
+
+
+hell_conf_add() {
+	# check if $1 not exitst
+	SERVICE=$1
+	echo "add service '${SERVICE}'"
+	hell_parse_argv $@
+	local args=(-n {})
+	if [ -z "${ARGV_CMD}" ] ; then
+		echo -e "${Red}arg -c was not passed :(${NC}"
+		exit 1
+	else
+		args+=(-s "${ARGV_CMD}" -i cmd)
+	fi
+	if [ -z ${ARGV_DIR} ] ; then
+		echo -e "${Yellow}arg -d was not passed :(${NC}"
+		exit 1
+	else
+		args+=(-s ${ARGV_DIR} -i dir)
+	fi
+	if [ -z ${ARGV_ENV} ] ; then
+		echo "arg -e was not passed."
+		echo "That's not a problem, u can set it later."
+	else
+		args+=(-s ${ARGV_ENV} -i env)
+	fi
+	if [ -f ${FILE_CONF} ] ; then
+		hell_load_check_json_file ${FILE_CONF}
+		local cfg=`cat ${FILE_CONF}`
+	else
+		local cfg="{}"
+	fi
+	echo ${cfg} | jshon ${args[@]} -i "${SERVICE}" > ${FILE_CONF}
+}
+
+hell_conf_update() {
+	echo "update service '${SERVICE}'"
+	hell_parse_argv $@
+	args=()
+	if [ ! -z ${ARGV_CMD} ] ; then
+		args+=(-s ${ARGV_CMD} -i cmd)
+	fi
+	if [ ! -z ${ARGV_DIR} ] ; then
+		args+=(-s ${ARGV_DIR} -i dir)
+	fi
+	if [ ! -z ${ARGV_ENV} ] ; then
+		args+=(-s ${ARGV_ENV} -i env)
+	fi
+	if  [[ ${#args[@]} -le 0 ]] ; then
+		echo "nothing to update; run -h to read help"
+		exit 1
+	fi
+	local res=`cat ${FILE_CONF}`
+	echo $res | jshon -Q -e ${SERVICE} ${args[@]} -i ${SERVICE} > ${FILE_CONF}
+}
+
+hell_conf_show() {
+	if [ -f ${FILE_CONF} ] ; then
+		echo "Service config"
+		echo "service: '${SERVICE}'"
+		echo "data: "`echo ${SERVICE_DATA} | json_pp`
+		if [ -z ${SERVICE_PID} ] ; then
+			echo -e "${Yellow}Service is not running${NC}"
+		else
+			echo -e "${Green}pid: ${SERVICE_PID}${NC}"
+		fi
+	else
+		echo -e "${Red}Config not found; Maybe it's empty?${NC}"
+	fi
+}
+
+hell_conf_show_all() {
+	echo "All services configs"
+	if [ -f ${FILE_CONF} ] ; then
+		cat ${FILE_CONF} | json_pp
+	else
+		echo -e "${Red}Config not found; Maybe it's empty?${NC}"
+	fi
+}
+
+hell_conf_delete() {
+	echo "delete service '${SERVICE}'"
+	if [ -f ${FILE_CONF} ] ; then
+		local res=`cat ${FILE_CONF}`
+		echo $res | jshon -Q -d ${SERVICE} > ${FILE_CONF}
+	fi
+	if [ -f ${FILE_PID} ] ; then
+		local res=`cat ${FILE_PID}`
+		echo $res | jshon -Q -d ${SERVICE} > ${FILE_PID}
 	fi
 }
 
@@ -351,11 +310,33 @@ main() {
 		exit 1
 	fi
 	case "$1" in
-		"-?" |"-h" | "--help")
-			help
-			exit 0
+		"-v")
+			echo -e " ${Green}Hell${NC} - utility to controll ${Red}daemons${NC}. v${VERSION}"
 		;;
-		"conf" | "ctl" | "status")
+		"-?" | "-h" | "--help")
+			help
+		;;
+		"add")
+			local new_service_name=$1
+			shift
+			shift
+			hell_conf_add ${new_service_name} $@
+		;;
+		"delete" | "update" | "show")
+			hell_load_service_info $1
+			local i=$2
+			shift
+			shift
+			"hell_conf_$i" $@
+		;;
+		"start" | "stop" | "status" | "restart" | "reload")
+			hell_load_service_info $1
+			local i=$2
+			shift
+			shift
+			"hell_ctl_$i" $@
+		;;
+		"status")
 			local i=$1
 			shift
 			"hell_$i" $@
