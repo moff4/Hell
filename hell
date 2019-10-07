@@ -134,10 +134,8 @@ hell_all_status() {
 }
 
 hell_all() {
-	hell_load_check_json_file ${FILE_CONF}
-	hell_load_check_json_file ${FILE_PID}
 	for service_name in `cat ${FILE_CONF} | jshon -Q -k` ; do
-		echo "$1 - ${service_name}"
+		hell_load_service_info ${service_name}
 		"hell_ctl_$i" ${service_name}
 	done
 }
