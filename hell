@@ -12,11 +12,11 @@ NC='\033[0m'
 
 mkdir -p ${HELL_DIR}
 
-# TESTED
+
 help() {
 	echo -e " ${Green}Hell${NC} - utility to controll ${Red}daemons${NC}"
 	echo " $ $0 [-h|-?|--help|-v]"
-	echo " $ $0 <service_name> [ start | stop | restart | reload | status ]"
+	echo " $ $0 [ start | stop | restart | reload | status ] <service_name>"
 	echo " $ $0 <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]"
 	echo " $ $0 status"
 	echo ""
@@ -329,9 +329,9 @@ main() {
 			shift
 			"hell_conf_$i" $@
 		;;
-		"start" | "stop" | "status" | "restart" | "reload")
-			hell_load_service_info $1
-			local i=$2
+		"start" | "stop" | "restart" | "reload")
+			hell_load_service_info $2
+			local i=$1
 			shift
 			shift
 			"hell_ctl_$i" $@
@@ -339,7 +339,14 @@ main() {
 		"status")
 			local i=$1
 			shift
-			"hell_$i" $@
+                        if [ -z $1 ]
+                        then
+				"hell_$i" $@
+			else
+				hell_load_service_info $1
+				shift
+				"hell_ctl_$i" $@
+			fi
 			exit 0
 		;;
 		*)
