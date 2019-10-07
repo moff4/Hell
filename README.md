@@ -5,20 +5,18 @@ Command line utility to controll daemons
 ## Usage
 ```
  $ hell [-h|-?|--help]
- $ hell <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]
- $ hell <service_name> [ start | stop | restart | reload | status ]
+ $ hell [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ] [ <service_name> ]
+ $ hell [ start | stop | restart | reload | status ] <service_name>
  $ hell status
 
  Flags:
-   -h , -? , --help
+   -h, -?, --help
        See help message
 
- Commands:
-   conf - work with configurations
-   ctl - controll panel
-   status - print status of all daemons
+   -v
+       print version
 
- Flags for conf:
+ Commands:
    add
         add new service to config
         must be also passed --cmd, --dir and --env
@@ -30,21 +28,20 @@ Command line utility to controll daemons
    delete
         delete service from config
 
- Args for conf:
-   -c=<cmd> |--cmd=<cmd>
-       command to be executed
-   -d=<dir> |--dir=<dir>
-       dir to be changed before executing
-   -e=<env_file> |--env=<env_file>
-       file with enviroment variables
-
- Flags for ctl:
    start, stop, restart
         Start/Stop/Restart service
    reload
         Reload configuration
    status
         Print current status
+
+ Args for commands "add", "update", "delete":
+   -c=<cmd> |--cmd=<cmd>
+       command how to start service
+   -d=<dir> |--dir=<dir>
+       dir to be changed before starting
+   -e=<env_file> |--env=<env_file>
+       file with enviroment variables
 ```
 
 ## Dependences:  
