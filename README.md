@@ -5,8 +5,8 @@ Command line utility to controll daemons
 ## Usage
 ```
  $ hell [-h|-?|--help]
- $ hell conf <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]
- $ hell ctl <service_name> [ start | stop | restart | reload | status ]
+ $ hell <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]
+ $ hell <service_name> [ start | stop | restart | reload | status ]
  $ hell status
 
  Flags:
@@ -90,7 +90,7 @@ Here are examples of usage of hell:
 
 Create service configuration   
 ```
-$ hell conf MyService add -c=./start.sh -d=~/my/project
+$ hell MyService add -c=./start.sh -d=~/my/project
 add service 'MyService'
 arg -e was not passed.
 That's not a problem, u can update info later.
@@ -98,13 +98,13 @@ That's not a problem, u can update info later.
 
 Update service configuration  
 ```
-$ hell conf MyService update --env=env/file.sh
+$ hell MyService update --env=env/file.sh
 update service 'MyService'
 ```
 
 Show service configuration  
 ```
-$ hell conf MyService show
+$ hell MyService show
 Service config
 service: 'MyService'
 data: { "dir" : "/home/", "env" : "/home/riniyar/bin/unixtime", "cmd" : "./start.sh" }
@@ -113,28 +113,28 @@ Service is not running
 
 Start service  
 ```
-$ hell ctl MyService start
+$ hell MyService start
 starting 'MyService'
 service started; Pid = 11248
 ```
 
 Show status of service  
 ```
-$ hell ctl MyService status
+$ hell MyService status
 status of 'MyService'
 Service is running
 ```
 
 Stop service  
 ```
-$ hell ctl MyService stop
+$ hell MyService stop
 stopping 'MyService'
 Service was stopped
 ```
 
 Delete service configuration  
 ```
-$ hell conf MyService delete
+$ hell MyService delete
 delete service 'MyService'
 ```
 
