@@ -16,18 +16,16 @@ mkdir -p ${HELL_DIR}
 help() {
 	echo -e " ${Green}Hell${NC} - utility to controll ${Red}daemons${NC}"
 	echo " $ $0 [-h|-?|--help|-v]"
-	echo " $ $0 [ start | stop | restart | reload | status ] <service_name>"
-	echo " $ $0 <service_name> [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ]"
+	echo " $ $0 [ start | stop | restart | reload | status ] [ <service_name> ]"
+	echo " $ $0 [ [ add | update ] [ -d=<dir> ] [ -c=<cmd> ] [ -e=<env_file> ] | delete | show ] <service_name>"
 	echo " $ $0 status"
-	echo ""
-	echo "Commands:"
-	echo "   conf - work with configurations"
-	echo "   ctl - controll panel"
-	echo "   status - print status of all daemons"
 	echo ""
 	echo " Flags:"
 	echo "   -h , -? , --help"
 	echo "       See this nice message again :3"
+	echo ""
+	echo "   -v"
+	echo "       print version"
 	echo ""
 	echo " Flags for conf:"
 	echo "   add"
@@ -115,7 +113,7 @@ hell_load_service_info() {
 	fi
 }
 
-hell_status() {
+hell_all_status() {
 	hell_status_single() {
 		pid=`cat ${FILE_PID} | jshon -Q -e $1 -u`
 		if [ -z $pid ] ; then
@@ -132,6 +130,15 @@ hell_status() {
 	hell_load_check_json_file ${FILE_PID}
 	for service_name in `cat ${FILE_CONF} | jshon -Q -k` ; do
 		echo ${service_name}" - "`hell_status_single ${service_name}`
+	done
+}
+
+hell_all() {
+	hell_load_check_json_file ${FILE_CONF}
+	hell_load_check_json_file ${FILE_PID}
+	for service_name in `cat ${FILE_CONF} | jshon -Q -k` ; do
+		echo "$1 - ${service_name}"
+		"hell_ctl_$i" ${service_name}
 	done
 }
 
@@ -215,7 +222,6 @@ hell_ctl_reload() {
 
 
 hell_conf_add() {
-	# check if $1 not exitst
 	SERVICE=$1
 	echo "add service '${SERVICE}'"
 	hell_parse_argv $@
@@ -310,12 +316,6 @@ main() {
 		exit 1
 	fi
 	case "$1" in
-		"-v")
-			echo -e " ${Green}Hell${NC} - utility to controll ${Red}daemons${NC}. v${VERSION}"
-		;;
-		"-?" | "-h" | "--help")
-			help
-		;;
 		"add")
 			local new_service_name=$1
 			shift
@@ -329,25 +329,36 @@ main() {
 			shift
 			"hell_conf_$i" $@
 		;;
-		"start" | "stop" | "restart" | "reload")
-			hell_load_service_info $2
-			local i=$1
-			shift
-			shift
-			"hell_ctl_$i" $@
-		;;
 		"status")
+			shift
+			if [ -z $1 ]
+			then
+				"hell_all_status" $@
+			else
+				hell_load_service_info $1
+				shift
+				"hell_ctl_status" $@
+			fi
+			exit 0
+		;;
+		"start" | "stop" | "restart" | "reload")
 			local i=$1
 			shift
-                        if [ -z $1 ]
-                        then
-				"hell_$i" $@
+			if [ -z $1 ]
+			then
+				"hell_all" $i $@
 			else
 				hell_load_service_info $1
 				shift
 				"hell_ctl_$i" $@
 			fi
 			exit 0
+		;;
+		"-v")
+			echo ${VERSION}
+		;;
+		"-?" | "-h" | "--help")
+			help
 		;;
 		*)
 			echo "Unknown command: $1"
